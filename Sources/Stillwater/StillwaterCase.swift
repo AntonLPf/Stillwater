@@ -19,8 +19,15 @@ open class StillwaterCase: XCTestCase {
     /// Called after `launch(extraArguments:)`. Override to wait for the app's first screen.
     open func waitUntilReady() {}
 
-    open override func setUp() async throws {
+    // Not `setUp() async`: with it, a failed assertion ends the test runner's process, and the
+    // run restarts after every failure. XCTest calls this one on the main thread.
+    open override func setUpWithError() throws {
         continueAfterFailure = false
+        nonisolated(unsafe) let test = self
+        MainActor.assumeIsolated { test.makeApp() }
+    }
+
+    private func makeApp() {
         app = XCUIApplication()
         app.launchArguments = launchArguments
     }
@@ -32,10 +39,12 @@ open class StillwaterCase: XCTestCase {
         waitUntilReady()
     }
 
-    /// Runs the system accessibility audit on the current screen.
+    /// Runs the system accessibility audit on the current screen. `ignoring` returns true for
+    /// an issue that should not fail the test.
     public func auditAccessibility(
-        for types: XCUIAccessibilityAuditType = [.elementDetection, .sufficientElementDescription, .trait]
+        for types: XCUIAccessibilityAuditType = [.elementDetection, .sufficientElementDescription, .trait],
+        ignoring shouldIgnore: @escaping (XCUIAccessibilityAuditIssue) throws -> Bool
     ) throws {
-        try app.performAccessibilityAudit(for: types)
+        try app.performAccessibilityAudit(for: types, shouldIgnore)
     }
 }
