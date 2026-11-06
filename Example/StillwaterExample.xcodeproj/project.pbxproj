@@ -1,0 +1,365 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5757A11C2F0000000000AA00 /* Stillwater in Frameworks */ = {isa = PBXBuildFile; productRef = 5757A11B2F0000000000AA00 /* Stillwater */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5757A10F2F0000000000AA00 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5757A1002F0000000000AA00 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5757A10D2F0000000000AA00;
+			remoteInfo = StillwaterExample;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		5757A1032F0000000000AA00 /* StillwaterExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StillwaterExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5757A1042F0000000000AA00 /* StillwaterExampleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = StillwaterExampleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5757A1052F0000000000AA00 /* StillwaterExample */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StillwaterExample;
+			sourceTree = "<group>";
+		};
+		5757A1062F0000000000AA00 /* StillwaterExampleUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = StillwaterExampleUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5757A1082F0000000000AA00 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5757A10B2F0000000000AA00 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5757A11C2F0000000000AA00 /* Stillwater in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5757A1012F0000000000AA00 = {
+			isa = PBXGroup;
+			children = (
+				5757A1052F0000000000AA00 /* StillwaterExample */,
+				5757A1062F0000000000AA00 /* StillwaterExampleUITests */,
+				5757A1022F0000000000AA00 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5757A1022F0000000000AA00 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5757A1032F0000000000AA00 /* StillwaterExample.app */,
+				5757A1042F0000000000AA00 /* StillwaterExampleUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5757A10D2F0000000000AA00 /* StillwaterExample */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5757A1122F0000000000AA00 /* Build configuration list for PBXNativeTarget "StillwaterExample" */;
+			buildPhases = (
+				5757A1072F0000000000AA00 /* Sources */,
+				5757A1082F0000000000AA00 /* Frameworks */,
+				5757A1092F0000000000AA00 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5757A1052F0000000000AA00 /* StillwaterExample */,
+			);
+			name = StillwaterExample;
+			productName = StillwaterExample;
+			productReference = 5757A1032F0000000000AA00 /* StillwaterExample.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5757A10E2F0000000000AA00 /* StillwaterExampleUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5757A1132F0000000000AA00 /* Build configuration list for PBXNativeTarget "StillwaterExampleUITests" */;
+			buildPhases = (
+				5757A10A2F0000000000AA00 /* Sources */,
+				5757A10B2F0000000000AA00 /* Frameworks */,
+				5757A10C2F0000000000AA00 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5757A1102F0000000000AA00 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5757A1062F0000000000AA00 /* StillwaterExampleUITests */,
+			);
+			name = StillwaterExampleUITests;
+			packageProductDependencies = (
+				5757A11B2F0000000000AA00 /* Stillwater */,
+			);
+			productName = StillwaterExampleUITests;
+			productReference = 5757A1042F0000000000AA00 /* StillwaterExampleUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5757A1002F0000000000AA00 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					5757A10E2F0000000000AA00 = {
+						TestTargetID = 5757A10D2F0000000000AA00;
+					};
+				};
+			};
+			buildConfigurationList = 5757A1112F0000000000AA00 /* Build configuration list for PBXProject "StillwaterExample" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5757A1012F0000000000AA00;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5757A11A2F0000000000AA00 /* XCLocalSwiftPackageReference ".." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5757A1022F0000000000AA00 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5757A10D2F0000000000AA00 /* StillwaterExample */,
+				5757A10E2F0000000000AA00 /* StillwaterExampleUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5757A1092F0000000000AA00 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5757A10C2F0000000000AA00 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5757A1072F0000000000AA00 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5757A10A2F0000000000AA00 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5757A1102F0000000000AA00 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5757A10D2F0000000000AA00 /* StillwaterExample */;
+			targetProxy = 5757A10F2F0000000000AA00 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		5757A1142F0000000000AA00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		5757A1152F0000000000AA00 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 6.0;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		5757A1162F0000000000AA00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StillwaterExample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		5757A1172F0000000000AA00 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StillwaterExample;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5757A1182F0000000000AA00 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StillwaterExampleUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = StillwaterExample;
+			};
+			name = Debug;
+		};
+		5757A1192F0000000000AA00 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.StillwaterExampleUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = StillwaterExample;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5757A1112F0000000000AA00 /* Build configuration list for PBXProject "StillwaterExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5757A1142F0000000000AA00 /* Debug */,
+				5757A1152F0000000000AA00 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5757A1122F0000000000AA00 /* Build configuration list for PBXNativeTarget "StillwaterExample" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5757A1162F0000000000AA00 /* Debug */,
+				5757A1172F0000000000AA00 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5757A1132F0000000000AA00 /* Build configuration list for PBXNativeTarget "StillwaterExampleUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5757A1182F0000000000AA00 /* Debug */,
+				5757A1192F0000000000AA00 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5757A11A2F0000000000AA00 /* XCLocalSwiftPackageReference ".." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ..;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5757A11B2F0000000000AA00 /* Stillwater */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = Stillwater;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 5757A1002F0000000000AA00 /* Project object */;
+}

@@ -1,0 +1,35 @@
+name: Bug report
+description: A helper does the wrong thing, or a test is flaky because of Stillwater.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, what you saw, and the failure message.
+    validations:
+      required: true
+  - type: textarea
+    id: test
+    attributes:
+      label: Smallest test that shows it
+      render: swift
+  - type: input
+    id: stillwater
+    attributes:
+      label: Stillwater version
+    validations:
+      required: true
+  - type: input
+    id: xcode
+    attributes:
+      label: Xcode version
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Simulator or device, and iOS version
+      placeholder: iPad mini (A17 Pro), iOS 27.0
+    validations:
+      required: true
