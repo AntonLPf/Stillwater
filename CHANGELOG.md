@@ -6,6 +6,8 @@ the API.
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-06
+
 ### Added
 
 - `waitUntilExists`, `waitUntilGone`, `waitUntilSettled`, and `tapWhenSettled` on `XCUIElement`.
@@ -16,3 +18,6 @@ the API.
   `keyboardDismissKeys`.
 - `auditAccessibility(for:ignoring:)`.
 - `matching(identifier:label:)` on queries, and `NSPredicate.identifier(_:label:)`.
+
+[Unreleased]: https://github.com/AntonLPf/Stillwater/compare/0.1.0...HEAD
+[0.1.0]: https://github.com/AntonLPf/Stillwater/releases/tag/0.1.0
