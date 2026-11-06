@@ -15,3 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: scripts/test.sh
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: test-logs
+          path: test-logs/
+          retention-days: 7
