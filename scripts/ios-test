@@ -14,6 +14,7 @@ Settings come from .ios-test in the current folder (or --config), as KEY=value l
     UI_TESTS=AppUITests
     UNIT_TESTS=AppTests
     TEST_ARGS=-testLanguage en -testRegion US
+    DEVICES=iphone                  for an iPhone-only app: close runs no iPad
     RELEASE_SIMULATORS=iPhone 16@18.5, iPad mini (A17 Pro)@26.2
 
 A run fails if xcodebuild fails, and also in two cases xcodebuild reports as success: the test
@@ -155,7 +156,7 @@ def choose_simulators(stage: str, wanted: str | None, config: dict[str, str]) ->
         return matches or [Simulator(wanted, wanted, (0, 0))]
     if stage == "quick":
         return [newest_iphone(simulators)]
-    chosen = newest_pair(simulators)
+    chosen = [newest_iphone(simulators)] if config.get("DEVICES") == "iphone" else newest_pair(simulators)
     if stage == "release":
         extra = named_simulators(config.get("RELEASE_SIMULATORS", ""), simulators)
         chosen += [s for s in extra if s not in chosen]
