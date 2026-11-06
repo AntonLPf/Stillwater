@@ -25,7 +25,10 @@ extension StillwaterCase {
 
     /// Closes the software keyboard, if one is up.
     public func dismissKeyboard() {
-        guard let keyboard = settledKeyboard() else { return }
+        // A keyboard still moving on a slow machine is closed all the same.
+        settledKeyboard()
+        let keyboard = app.keyboards.firstMatch
+        guard keyboard.exists else { return }
         for key in keyboardDismissKeys {
             let button = app.keyboards.buttons[key]
             if canTapKey(button) {

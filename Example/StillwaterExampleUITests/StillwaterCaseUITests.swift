@@ -29,6 +29,14 @@ final class StillwaterCaseUITests: ExampleUITestCase {
         XCTAssertTrue(app.keyboards.firstMatch.waitUntilGone(timeout: 2))
     }
 
+    func testDismissKeyboardDoesNothingWithNoKeyboardUp() {
+        launch()
+
+        dismissKeyboard()
+
+        XCTAssertTrue(app.navigationBars["Stillwater"].exists)
+    }
+
     func testAuditLetsTheFilterIgnoreIssues() throws {
         launch()
 
