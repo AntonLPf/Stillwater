@@ -97,8 +97,8 @@ Then run it there:
 | `ios-test close` | All tests on an iPhone and an iPad on the newest iOS that has both. |
 | `ios-test release` | The same, and every simulator in `RELEASE_SIMULATORS`. |
 
-It picks the simulators, runs at most two at a time, keeps the full logs in `test-logs/`, and prints
-a table. It fails if the test runner restarted or no test ran, which `xcodebuild` reports as
+It picks the simulators, runs at most two at a time, keeps the full logs and a result bundle for each
+run in `test-logs/`, and prints a table. It fails if the test runner restarted or no test ran, which `xcodebuild` reports as
 success. `ios-test --help` lists the rest.
 
 A simulator keeps its text size, appearance, and contrast after a person or another project changes

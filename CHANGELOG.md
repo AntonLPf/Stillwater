@@ -11,6 +11,7 @@ the API.
 - `scripts/ios-test`, a command that runs any iOS project's tests and checks the result.
 - `ios-test` boots each simulator and puts its text size, appearance, and contrast back to the
   system's defaults before the tests, so a setting left behind cannot change the result.
+- `ios-test` gives each run its own result bundle in `test-logs/`.
 
 ## [0.1.1] - 2026-11-06
 

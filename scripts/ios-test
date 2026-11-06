@@ -19,7 +19,7 @@ Settings come from .ios-test in the current folder (or --config), as KEY=value l
 
 A run fails if xcodebuild fails, and also in two cases xcodebuild reports as success: the test
 runner restarted, or no test ran. UI tests fail a run if the log shows cloned simulators. Full
-logs stay in test-logs/. At most two simulators run at a time.
+logs and result bundles stay in test-logs/. At most two simulators run at a time.
 
 Before the tests, each simulator boots, one at a time, and its text size, appearance, and contrast
 go back to the system's defaults.
@@ -32,6 +32,7 @@ import concurrent.futures
 import json
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -239,8 +240,12 @@ def run_tests(
 ) -> Result:
     name = re.sub(r"[^A-Za-z0-9.]+", "-", f"{suite}-{simulator.name}-{simulator.version[0]}.{simulator.version[1]}")
     log = LOGS / f"{name}.log"
+    # Without a path of its own, two runs that start in the same second share one result bundle.
+    results = LOGS / f"{name}.xcresult"
+    shutil.rmtree(results, ignore_errors=True)
     command = base_command(config) + [
         "test-without-building", "-destination", f"id={simulator.udid}", f"-only-testing:{target}",
+        "-resultBundlePath", str(results),
     ]
     if is_ui:
         command += ["-parallel-testing-enabled", "NO"]
