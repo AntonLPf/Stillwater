@@ -8,8 +8,8 @@ Thanks for helping. Bug reports with a small failing test are the most useful th
 scripts/test.sh
 ```
 
-It runs the package's unit tests and the UI tests of the app in `Example/`, on the newest iPhone
-simulator. Pass a simulator's id to pick another one. It also fails if the test runner restarted
+It runs the package's unit tests and the UI tests of the app in `Example/`, through
+`scripts/ios-test`, on the newest iPhone simulator. Pass a simulator's id to pick another one. It also fails if the test runner restarted
 or no test ran, which `xcodebuild` alone reports as success.
 The full logs stay in `test-logs/`, and CI keeps them for a week as an artifact of each run.
 

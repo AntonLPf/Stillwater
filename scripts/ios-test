@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""Runs an iOS project's tests the same way in every project, and checks the result.
+
+    ios-test quick                 one iPhone: the UI tests, or the unit tests if there are none
+    ios-test close                 one iPhone and one iPad: all tests
+    ios-test release               the same, and every simulator in RELEASE_SIMULATORS
+    ios-test quick --simulator ID  that simulator
+    ios-test quick --only Target/Class/test
+
+Settings come from .ios-test in the current folder (or --config), as KEY=value lines:
+
+    PROJECT=App.xcodeproj           leave out for a Swift package
+    SCHEME=App
+    UI_TESTS=AppUITests
+    UNIT_TESTS=AppTests
+    TEST_ARGS=-testLanguage en -testRegion US
+    RELEASE_SIMULATORS=iPhone 16@18.5, iPad mini (A17 Pro)@26.2
+
+A run fails if xcodebuild fails, and also in two cases xcodebuild reports as success: the test
+runner restarted, or no test ran. UI tests fail a run if the log shows cloned simulators. Full
+logs stay in test-logs/. At most two simulators run at a time.
+"""
+
+from __future__ import annotations
+
+import argparse
+import concurrent.futures
+import json
+import re
+import shlex
+import subprocess
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+
+LOGS = Path("test-logs")
+MAX_SIMULATORS = 2
+
+
+@dataclass(frozen=True)
+class Simulator:
+    udid: str
+    name: str
+    version: tuple[int, int]
+
+    @property
+    def label(self) -> str:
+        return f"{self.name} (iOS {self.version[0]}.{self.version[1]})"
+
+
+@dataclass
+class Result:
+    suite: str
+    simulator: Simulator
+    passed: int
+    failed: int
+    skipped: int
+    restarts: int
+    problem: str | None
+    failures: list[str]
+    log: Path
+
+
+def fail(message: str) -> None:
+    print(f"error: {message}", file=sys.stderr)
+    raise SystemExit(2)
+
+
+def read_config(path: Path) -> dict[str, str]:
+    if not path.exists():
+        fail(f"no {path} here; see ios-test --help")
+    config = {}
+    for number, line in enumerate(path.read_text().splitlines(), start=1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if not separator:
+            fail(f"{path}:{number}: expected KEY=value")
+        config[key.strip()] = value.strip()
+    if "SCHEME" not in config:
+        fail(f"{path} has no SCHEME")
+    if "UI_TESTS" not in config and "UNIT_TESTS" not in config:
+        fail(f"{path} has neither UI_TESTS nor UNIT_TESTS")
+    return config
+
+
+def available_simulators() -> list[Simulator]:
+    output = subprocess.run(
+        ["xcrun", "simctl", "list", "devices", "available", "-j"],
+        check=True, capture_output=True, text=True,
+    ).stdout
+    simulators = []
+    for runtime, devices in json.loads(output)["devices"].items():
+        match = re.search(r"iOS-(\d+)-(\d+)", runtime)
+        if match:
+            version = (int(match[1]), int(match[2]))
+            simulators += [Simulator(d["udid"], d["name"], version) for d in devices]
+    return simulators
+
+
+def plain_iphones(simulators: list[Simulator]) -> list[Simulator]:
+    return [s for s in simulators if re.fullmatch(r"iPhone \d+.*", s.name)]
+
+
+def ipads(simulators: list[Simulator]) -> list[Simulator]:
+    return [s for s in simulators if s.name.startswith("iPad")]
+
+
+def preferred(simulators: list[Simulator]) -> Simulator:
+    """The plainest model of these: an iPad mini, or the shortest name."""
+    return min(simulators, key=lambda s: ("mini" not in s.name, len(s.name), s.name))
+
+
+def newest_iphone(simulators: list[Simulator]) -> Simulator:
+    phones = plain_iphones(simulators)
+    if not phones:
+        fail("no iPhone simulator is available")
+    newest = max(s.version for s in phones)
+    return preferred([s for s in phones if s.version == newest])
+
+
+def newest_pair(simulators: list[Simulator]) -> list[Simulator]:
+    """An iPhone and an iPad on the newest iOS that has both."""
+    phones, tablets = plain_iphones(simulators), ipads(simulators)
+    shared = {s.version for s in phones} & {s.version for s in tablets}
+    if not shared:
+        fail("no iOS version has both an iPhone and an iPad simulator")
+    newest = max(shared)
+    return [
+        preferred([s for s in phones if s.version == newest]),
+        preferred([s for s in tablets if s.version == newest]),
+    ]
+
+
+def named_simulators(names: str, simulators: list[Simulator]) -> list[Simulator]:
+    """Finds each 'Name@18.5' of a comma-separated list."""
+    found = []
+    for entry in filter(None, (part.strip() for part in names.split(","))):
+        name, _, version = entry.partition("@")
+        matches = [
+            s for s in simulators
+            if s.name == name.strip() and f"{s.version[0]}.{s.version[1]}".startswith(version.strip())
+        ]
+        if not matches:
+            fail(f"no simulator matches '{entry}' in RELEASE_SIMULATORS")
+        found.append(max(matches, key=lambda s: s.version))
+    return found
+
+
+def choose_simulators(stage: str, wanted: str | None, config: dict[str, str]) -> list[Simulator]:
+    simulators = available_simulators()
+    if wanted:
+        matches = [s for s in simulators if s.udid == wanted]
+        return matches or [Simulator(wanted, wanted, (0, 0))]
+    if stage == "quick":
+        return [newest_iphone(simulators)]
+    chosen = newest_pair(simulators)
+    if stage == "release":
+        extra = named_simulators(config.get("RELEASE_SIMULATORS", ""), simulators)
+        chosen += [s for s in extra if s not in chosen]
+    return chosen
+
+
+def base_command(config: dict[str, str]) -> list[str]:
+    command = ["xcodebuild"]
+    if "PROJECT" in config:
+        command += ["-project", config["PROJECT"]]
+    return command + ["-scheme", config["SCHEME"]]
+
+
+def build(config: dict[str, str], simulator: Simulator) -> None:
+    log = LOGS / f"build-{config['SCHEME']}.log"
+    print("Building for testing…", flush=True)
+    with log.open("w") as output:
+        status = subprocess.run(
+            base_command(config) + ["build-for-testing", "-destination", f"id={simulator.udid}"],
+            stdout=output, stderr=subprocess.STDOUT,
+        ).returncode
+    if status != 0:
+        for line in log.read_text(errors="replace").splitlines():
+            if "error:" in line:
+                print(line[:200], file=sys.stderr)
+        fail(f"the build failed; see {log}")
+
+
+def count(pattern: str, text: str) -> int:
+    return len(re.findall(pattern, text, re.MULTILINE))
+
+
+def read_result(suite: str, simulator: Simulator, status: int, log: Path, is_ui: bool) -> Result:
+    text = log.read_text(errors="replace")
+    passed = count(r"^Test [Cc]ase .* passed", text)
+    failed = count(r"^Test [Cc]ase .* failed", text)
+    skipped = count(r"^Test [Cc]ase .* skipped", text)
+    restarts = text.count("Restarting after unexpected exit")
+    problem = None
+    if status != 0:
+        problem = "xcodebuild failed"
+    elif restarts:
+        problem = "the test runner restarted"
+    elif passed + failed + skipped == 0:
+        problem = "no test ran"
+    elif is_ui and re.search(r"Clone \d+ of ", text):
+        problem = "UI tests ran on cloned simulators"
+    failures = sorted(set(re.findall(r"error: -\[(\S+ \S+)\] : (.*)", text)))
+    return Result(
+        suite, simulator, passed, failed, skipped, restarts, problem,
+        [f"{name}: {message[:100]}" for name, message in failures], log,
+    )
+
+
+def run_tests(
+    config: dict[str, str], suite: str, target: str, simulator: Simulator, is_ui: bool
+) -> Result:
+    name = re.sub(r"[^A-Za-z0-9.]+", "-", f"{suite}-{simulator.name}-{simulator.version[0]}.{simulator.version[1]}")
+    log = LOGS / f"{name}.log"
+    command = base_command(config) + [
+        "test-without-building", "-destination", f"id={simulator.udid}", f"-only-testing:{target}",
+    ]
+    if is_ui:
+        command += ["-parallel-testing-enabled", "NO"]
+    command += shlex.split(config.get("TEST_ARGS", ""))
+    print(f"Running {suite} on {simulator.label}…", flush=True)
+    with log.open("w") as output:
+        status = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT).returncode
+    return read_result(suite, simulator, status, log, is_ui)
+
+
+def report(results: list[Result]) -> bool:
+    print()
+    print(f"{'Suite':<7}{'Simulator':<36}{'Passed':>7}{'Failed':>7}{'Skipped':>8}  Result")
+    for result in results:
+        outcome = result.problem or ("FAILED" if result.failed else "ok")
+        print(
+            f"{result.suite:<7}{result.simulator.label:<36}{result.passed:>7}"
+            f"{result.failed:>7}{result.skipped:>8}  {outcome}"
+        )
+    good = True
+    for result in results:
+        if result.failures:
+            print(f"\n{result.suite} on {result.simulator.label}:")
+            for failure in result.failures[:20]:
+                print(f"  {failure}")
+        if result.problem or result.failed:
+            print(f"  full log: {result.log}")
+            good = False
+    return good
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("stage", choices=["quick", "close", "release"])
+    parser.add_argument("--simulator", help="a simulator's id, instead of choosing one")
+    parser.add_argument("--only", help="Target/Class/test, instead of the whole suite")
+    parser.add_argument("--config", default=".ios-test", type=Path)
+    args = parser.parse_args()
+    config = read_config(args.config)
+    LOGS.mkdir(exist_ok=True)
+    (LOGS / ".gitignore").write_text("*\n")
+
+    simulators = choose_simulators(args.stage, args.simulator, config)
+    build(config, simulators[0])
+
+    ui, unit = config.get("UI_TESTS"), config.get("UNIT_TESTS")
+    results: list[Result] = []
+    with concurrent.futures.ThreadPoolExecutor(MAX_SIMULATORS) as pool:
+        if args.only:
+            is_ui = ui is not None and args.only.startswith(ui)
+            suites = [("ui" if is_ui else "unit", args.only, is_ui)]
+        elif args.stage == "quick":
+            suites = [("ui", ui, True)] if ui else [("unit", unit, False)]
+        else:
+            suites = [("ui", ui, True)] if ui else []
+            suites += [("unit", unit, False)] if unit else []
+        for suite, target, is_ui in suites:
+            results += pool.map(lambda s: run_tests(config, suite, target, s, is_ui), simulators)
+
+    return 0 if report(results) else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

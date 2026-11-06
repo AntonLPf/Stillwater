@@ -71,6 +71,36 @@ for one test.
 | `auditAccessibility(for:ignoring:)` | Runs the system audit, with a filter for issues you accept. |
 | `query.matching(identifier:label:)` | Picks one of several rows that share an identifier. |
 
+## Run tests the same way everywhere
+
+`scripts/ios-test` is a command for any iOS project, separate from the package. Link it onto your
+`PATH` once:
+
+```bash
+ln -s "$PWD/scripts/ios-test" /usr/local/bin/ios-test
+```
+
+Put the settings in `.ios-test` at the root of each project:
+
+```
+PROJECT=App.xcodeproj
+SCHEME=App
+UI_TESTS=AppUITests
+UNIT_TESTS=AppTests
+```
+
+Then run it there:
+
+| Command | What it runs |
+| --- | --- |
+| `ios-test quick` | The UI tests on one iPhone. |
+| `ios-test close` | All tests on an iPhone and an iPad on the newest iOS that has both. |
+| `ios-test release` | The same, and every simulator in `RELEASE_SIMULATORS`. |
+
+It picks the simulators, runs at most two at a time, keeps the full logs in `test-logs/`, and prints
+a table. It fails if the test runner restarted or no test ran, which `xcodebuild` reports as
+success. `ios-test --help` lists the rest.
+
 ## Requirements
 
 iOS 18 or later, and Swift 6 tools (Xcode 16 or later). Developed with Xcode 27.2, and tested on

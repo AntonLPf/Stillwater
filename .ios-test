@@ -1,0 +1,3 @@
+PROJECT=Example/StillwaterExample.xcodeproj
+SCHEME=StillwaterExample
+UI_TESTS=StillwaterExampleUITests

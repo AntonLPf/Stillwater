@@ -6,6 +6,10 @@ the API.
 
 ## [Unreleased]
 
+### Added
+
+- `scripts/ios-test`, a command that runs any iOS project's tests and checks the result.
+
 ## [0.1.1] - 2026-11-06
 
 ### Fixed
