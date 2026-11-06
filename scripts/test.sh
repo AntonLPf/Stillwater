@@ -6,7 +6,7 @@
 #   scripts/test.sh <simulator-id>  that simulator
 #
 # xcodebuild can report success in two cases this script does not accept: when the test runner
-# died and restarted, and when no test ran at all.
+# died and restarted, and when no test ran at all. The full logs stay in test-logs/.
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -23,10 +23,12 @@ print(max(phones)[1])
 ')}"
 echo "Simulator: $simulator"
 
-log="$(mktemp)"
-trap 'rm -f "$log"' EXIT
+logs=test-logs
+mkdir -p "$logs"
 
 run() {
+    local log="$logs/$1.log"
+    shift
     local status=0
     "$@" > "$log" 2>&1 || status=$?
     grep -E "error:|Executed [0-9]+ test|\*\* TEST" "$log" || true
@@ -44,9 +46,9 @@ run() {
     fi
 }
 
-run xcodebuild test -scheme Stillwater -destination "id=$simulator"
+run package xcodebuild test -scheme Stillwater -destination "id=$simulator"
 
-run xcodebuild test \
+run example xcodebuild test \
     -project Example/StillwaterExample.xcodeproj \
     -scheme StillwaterExample \
     -destination "id=$simulator" \

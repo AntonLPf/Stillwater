@@ -6,6 +6,11 @@ the API.
 
 ## [Unreleased]
 
+### Fixed
+
+- `dismissKeyboard()` closes a keyboard that has not stopped moving after three seconds, instead of
+  returning without closing it.
+
 ## [0.1.0] - 2026-11-06
 
 ### Added
