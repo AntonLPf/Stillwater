@@ -101,6 +101,10 @@ It picks the simulators, runs at most two at a time, keeps the full logs in `tes
 a table. It fails if the test runner restarted or no test ran, which `xcodebuild` reports as
 success. `ios-test --help` lists the rest.
 
+A simulator keeps its text size, appearance, and contrast after a person or another project changes
+them, so `ios-test` boots each one and puts them back to the system's defaults before the tests. It
+prints any setting it changes.
+
 ## Requirements
 
 iOS 18 or later, and Swift 6 tools (Xcode 16 or later). Developed with Xcode 27.2, and tested on

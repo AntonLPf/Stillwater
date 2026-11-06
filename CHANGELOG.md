@@ -9,6 +9,8 @@ the API.
 ### Added
 
 - `scripts/ios-test`, a command that runs any iOS project's tests and checks the result.
+- `ios-test` boots each simulator and puts its text size, appearance, and contrast back to the
+  system's defaults before the tests, so a setting left behind cannot change the result.
 
 ## [0.1.1] - 2026-11-06
 

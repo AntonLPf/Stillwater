@@ -20,6 +20,9 @@ Settings come from .ios-test in the current folder (or --config), as KEY=value l
 A run fails if xcodebuild fails, and also in two cases xcodebuild reports as success: the test
 runner restarted, or no test ran. UI tests fail a run if the log shows cloned simulators. Full
 logs stay in test-logs/. At most two simulators run at a time.
+
+Before the tests, each simulator boots, one at a time, and its text size, appearance, and contrast
+go back to the system's defaults.
 """
 
 from __future__ import annotations
@@ -36,6 +39,11 @@ from pathlib import Path
 
 LOGS = Path("test-logs")
 MAX_SIMULATORS = 2
+
+# A simulator keeps these after a person or another project changes them, and they move the layout:
+# at a larger text size, a list row that fits at the default can end up below the fold, and a row
+# off screen is not in the accessibility tree.
+DISPLAY_DEFAULTS = {"content_size": "large", "appearance": "light", "increase_contrast": "disabled"}
 
 
 @dataclass(frozen=True)
@@ -185,6 +193,21 @@ def build(config: dict[str, str], simulator: Simulator) -> None:
         fail(f"the build failed; see {log}")
 
 
+def prepare(simulator: Simulator) -> None:
+    """Boots the simulator and puts its display settings back to the system's defaults."""
+    booted = subprocess.run(
+        ["xcrun", "simctl", "bootstatus", simulator.udid, "-b"], capture_output=True, text=True,
+    )
+    if booted.returncode != 0:
+        fail(f"could not boot {simulator.label}: {booted.stderr.strip()}")
+    for setting, default in DISPLAY_DEFAULTS.items():
+        command = ["xcrun", "simctl", "ui", simulator.udid, setting]
+        current = subprocess.run(command, capture_output=True, text=True).stdout.strip()
+        if current not in (default, "unsupported"):
+            print(f"{simulator.label}: {setting} was {current}, now {default}", flush=True)
+            subprocess.run(command + [default], check=True, capture_output=True)
+
+
 def count(pattern: str, text: str) -> int:
     return len(re.findall(pattern, text, re.MULTILINE))
 
@@ -264,6 +287,8 @@ def main() -> int:
 
     simulators = choose_simulators(args.stage, args.simulator, config)
     build(config, simulators[0])
+    for simulator in simulators:
+        prepare(simulator)
 
     ui, unit = config.get("UI_TESTS"), config.get("UNIT_TESTS")
     results: list[Result] = []
