@@ -14,6 +14,7 @@ the API.
 - `ios-test` gives each run its own result bundle in `test-logs/`.
 - `ios-test` counts tests and lists failures from the result bundle, so a parameterized test counts
   once and a Swift Testing failure shows in its report.
+- `ios-test --iterations` runs each test several times, and `--only` can be given more than once.
 - `ios-test` runs unit tests without cloned simulators too.
 
 ## [0.1.1] - 2026-11-06

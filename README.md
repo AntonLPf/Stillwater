@@ -97,6 +97,9 @@ Then run it there:
 | `ios-test close` | All tests on an iPhone and an iPad on the newest iOS that has both. |
 | `ios-test release` | The same, and every simulator in `RELEASE_SIMULATORS`. |
 
+Add `--only Target/Class/test` for one test, more than once for several. Add `--iterations 3` to run
+each test three times: one failure among them fails the test.
+
 It picks the simulators, runs at most two at a time, keeps the full logs and a result bundle for each
 run in `test-logs/`, and prints a table of tests, counted from the bundle. It fails if the test
 runner restarted or no test ran, which `xcodebuild` reports as success. `ios-test --help` lists the

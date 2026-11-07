@@ -6,6 +6,7 @@
     ios-test release               the same, and every simulator in RELEASE_SIMULATORS
     ios-test quick --simulator ID  that simulator
     ios-test quick --only Target/Class/test
+    ios-test quick --only Target/Class/test --iterations 3
 
 Settings come from .ios-test in the current folder (or --config), as KEY=value lines:
 
@@ -243,7 +244,9 @@ def read_result(suite: str, simulator: Simulator, status: int, log: Path, bundle
     return Result(suite, simulator, passed, failed, skipped, restarts, problem, failures, log)
 
 
-def run_tests(config: dict[str, str], suite: str, target: str, simulator: Simulator) -> Result:
+def run_tests(
+    config: dict[str, str], suite: str, targets: list[str], simulator: Simulator, iterations: int
+) -> Result:
     name = re.sub(r"[^A-Za-z0-9.]+", "-", f"{suite}-{simulator.name}-{simulator.version[0]}.{simulator.version[1]}")
     log = LOGS / f"{name}.log"
     # Without a path of its own, two runs that start in the same second share one result bundle.
@@ -253,8 +256,10 @@ def run_tests(config: dict[str, str], suite: str, target: str, simulator: Simula
     command = base_command(config) + [
         "test-without-building", "-destination", f"id={simulator.udid}",
         "-resultBundlePath", str(results), "-parallel-testing-enabled", "NO",
-        f"-only-testing:{target}",
     ]
+    command += [f"-only-testing:{target}" for target in targets]
+    if iterations > 1:
+        command += ["-test-iterations", str(iterations)]
     command += shlex.split(config.get("TEST_ARGS", ""))
     print(f"Running {suite} on {simulator.label}…", flush=True)
     with log.open("w") as output:
@@ -289,7 +294,13 @@ def main() -> int:
     )
     parser.add_argument("stage", choices=["quick", "close", "release"])
     parser.add_argument("--simulator", help="a simulator's id, instead of choosing one")
-    parser.add_argument("--only", help="Target/Class/test, instead of the whole suite")
+    parser.add_argument(
+        "--only", action="append", help="Target/Class/test, instead of the whole suite; can repeat"
+    )
+    parser.add_argument(
+        "--iterations", type=int, default=1,
+        help="how many times to run each test; one failure among them fails the test",
+    )
     parser.add_argument("--config", default=".ios-test", type=Path)
     args = parser.parse_args()
     config = read_config(args.config)
@@ -305,15 +316,18 @@ def main() -> int:
     results: list[Result] = []
     with concurrent.futures.ThreadPoolExecutor(MAX_SIMULATORS) as pool:
         if args.only:
-            is_ui = ui is not None and args.only.startswith(ui)
-            suites = [("ui" if is_ui else "unit", args.only)]
+            ui_tests = [test for test in args.only if ui is not None and test.startswith(ui)]
+            unit_tests = [test for test in args.only if test not in ui_tests]
+            suites = [("ui", ui_tests), ("unit", unit_tests)]
         elif args.stage == "quick":
-            suites = [("ui", ui)] if ui else [("unit", unit)]
+            suites = [("ui", [ui])] if ui else [("unit", [unit])]
         else:
-            suites = [("ui", ui)] if ui else []
-            suites += [("unit", unit)] if unit else []
-        for suite, target in suites:
-            results += pool.map(lambda s: run_tests(config, suite, target, s), simulators)
+            suites = [("ui", [ui] if ui else []), ("unit", [unit] if unit else [])]
+        for suite, targets in suites:
+            if targets:
+                results += pool.map(
+                    lambda s: run_tests(config, suite, targets, s, args.iterations), simulators
+                )
 
     return 0 if report(results) else 1
 
