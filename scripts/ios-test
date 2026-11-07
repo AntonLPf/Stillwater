@@ -18,8 +18,8 @@ Settings come from .ios-test in the current folder (or --config), as KEY=value l
     RELEASE_SIMULATORS=iPhone 16@18.5, iPad mini (A17 Pro)@26.2
 
 A run fails if xcodebuild fails, and also in two cases xcodebuild reports as success: the test
-runner restarted, or no test ran. UI tests fail a run if the log shows cloned simulators. Full
-logs and result bundles stay in test-logs/. At most two simulators run at a time.
+runner restarted, or no test ran. A run also fails if the log shows cloned simulators. Full logs
+and result bundles stay in test-logs/. At most two simulators run at a time.
 
 Before the tests, each simulator boots, one at a time, and its text size, appearance, and contrast
 go back to the system's defaults.
@@ -213,7 +213,7 @@ def count(pattern: str, text: str) -> int:
     return len(re.findall(pattern, text, re.MULTILINE))
 
 
-def read_result(suite: str, simulator: Simulator, status: int, log: Path, is_ui: bool) -> Result:
+def read_result(suite: str, simulator: Simulator, status: int, log: Path) -> Result:
     text = log.read_text(errors="replace")
     passed = count(r"^Test [Cc]ase .* passed", text)
     failed = count(r"^Test [Cc]ase .* failed", text)
@@ -226,8 +226,8 @@ def read_result(suite: str, simulator: Simulator, status: int, log: Path, is_ui:
         problem = "the test runner restarted"
     elif passed + failed + skipped == 0:
         problem = "no test ran"
-    elif is_ui and re.search(r"Clone \d+ of ", text):
-        problem = "UI tests ran on cloned simulators"
+    elif re.search(r"Clone \d+ of ", text):
+        problem = "tests ran on cloned simulators"
     failures = sorted(set(re.findall(r"error: -\[(\S+ \S+)\] : (.*)", text)))
     return Result(
         suite, simulator, passed, failed, skipped, restarts, problem,
@@ -235,25 +235,23 @@ def read_result(suite: str, simulator: Simulator, status: int, log: Path, is_ui:
     )
 
 
-def run_tests(
-    config: dict[str, str], suite: str, target: str, simulator: Simulator, is_ui: bool
-) -> Result:
+def run_tests(config: dict[str, str], suite: str, target: str, simulator: Simulator) -> Result:
     name = re.sub(r"[^A-Za-z0-9.]+", "-", f"{suite}-{simulator.name}-{simulator.version[0]}.{simulator.version[1]}")
     log = LOGS / f"{name}.log"
     # Without a path of its own, two runs that start in the same second share one result bundle.
     results = LOGS / f"{name}.xcresult"
     shutil.rmtree(results, ignore_errors=True)
+    # Parallel testing clones the simulator, and clones booting together stall a small Mac.
     command = base_command(config) + [
-        "test-without-building", "-destination", f"id={simulator.udid}", f"-only-testing:{target}",
-        "-resultBundlePath", str(results),
+        "test-without-building", "-destination", f"id={simulator.udid}",
+        "-resultBundlePath", str(results), "-parallel-testing-enabled", "NO",
+        f"-only-testing:{target}",
     ]
-    if is_ui:
-        command += ["-parallel-testing-enabled", "NO"]
     command += shlex.split(config.get("TEST_ARGS", ""))
     print(f"Running {suite} on {simulator.label}…", flush=True)
     with log.open("w") as output:
         status = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT).returncode
-    return read_result(suite, simulator, status, log, is_ui)
+    return read_result(suite, simulator, status, log)
 
 
 def report(results: list[Result]) -> bool:
@@ -300,14 +298,14 @@ def main() -> int:
     with concurrent.futures.ThreadPoolExecutor(MAX_SIMULATORS) as pool:
         if args.only:
             is_ui = ui is not None and args.only.startswith(ui)
-            suites = [("ui" if is_ui else "unit", args.only, is_ui)]
+            suites = [("ui" if is_ui else "unit", args.only)]
         elif args.stage == "quick":
-            suites = [("ui", ui, True)] if ui else [("unit", unit, False)]
+            suites = [("ui", ui)] if ui else [("unit", unit)]
         else:
-            suites = [("ui", ui, True)] if ui else []
-            suites += [("unit", unit, False)] if unit else []
-        for suite, target, is_ui in suites:
-            results += pool.map(lambda s: run_tests(config, suite, target, s, is_ui), simulators)
+            suites = [("ui", ui)] if ui else []
+            suites += [("unit", unit)] if unit else []
+        for suite, target in suites:
+            results += pool.map(lambda s: run_tests(config, suite, target, s), simulators)
 
     return 0 if report(results) else 1
 
