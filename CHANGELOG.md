@@ -11,6 +11,8 @@ the API.
 - `scripts/ios-test`, a command that runs any iOS project's tests and checks the result.
 - `ios-test` boots each simulator and puts its text size, appearance, and contrast back to the
   system's defaults before the tests, so a setting left behind cannot change the result.
+- `ios-test` boots a simulator that is down, one at a time, and waits for the Mac to settle before
+  the tests. It runs simulators in pairs, and shuts down a pair it booted before the next.
 - `ios-test` gives each run its own result bundle in `test-logs/`.
 - `ios-test` counts tests and lists failures from the result bundle, so a parameterized test counts
   once and a Swift Testing failure shows in its report.
