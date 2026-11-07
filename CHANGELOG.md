@@ -18,6 +18,8 @@ the API.
   once and a Swift Testing failure shows in its report.
 - `ios-test --iterations` runs each test several times, and `--only` can be given more than once.
 - `ios-test` runs unit tests without cloned simulators too.
+- Tests for `scripts/ios-test` in `scripts/tests/`. They need no simulator, and `scripts/test.sh` runs
+  them first.
 
 ## [0.1.1] - 2026-11-06
 
