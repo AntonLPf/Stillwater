@@ -209,18 +209,25 @@ def prepare(simulator: Simulator) -> None:
             subprocess.run(command + [default], check=True, capture_output=True)
 
 
-def count(pattern: str, text: str) -> int:
-    return len(re.findall(pattern, text, re.MULTILINE))
+def read_summary(bundle: Path) -> dict:
+    """The counts and failures in a result bundle, or nothing if the run left none to read."""
+    output = subprocess.run(
+        ["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(bundle)],
+        capture_output=True, text=True,
+    )
+    return json.loads(output.stdout) if output.returncode == 0 else {}
 
 
-def read_result(suite: str, simulator: Simulator, status: int, log: Path) -> Result:
+def read_result(suite: str, simulator: Simulator, status: int, log: Path, bundle: Path) -> Result:
     text = log.read_text(errors="replace")
-    passed = count(r"^Test [Cc]ase .* passed", text)
-    failed = count(r"^Test [Cc]ase .* failed", text)
-    skipped = count(r"^Test [Cc]ase .* skipped", text)
+    # The log prints a parameterized test once per argument, and can leave a line out.
+    summary = read_summary(bundle)
+    passed = summary.get("passedTests", 0) + summary.get("expectedFailures", 0)
+    failed = summary.get("failedTests", 0)
+    skipped = summary.get("skippedTests", 0)
     restarts = text.count("Restarting after unexpected exit")
     problem = None
-    if status != 0:
+    if status != 0 and not failed:
         problem = "xcodebuild failed"
     elif restarts:
         problem = "the test runner restarted"
@@ -228,11 +235,12 @@ def read_result(suite: str, simulator: Simulator, status: int, log: Path) -> Res
         problem = "no test ran"
     elif re.search(r"Clone \d+ of ", text):
         problem = "tests ran on cloned simulators"
-    failures = sorted(set(re.findall(r"error: -\[(\S+ \S+)\] : (.*)", text)))
-    return Result(
-        suite, simulator, passed, failed, skipped, restarts, problem,
-        [f"{name}: {message[:100]}" for name, message in failures], log,
-    )
+    failures = sorted({
+        f"{failure.get('testIdentifierString', failure['testName'])}: "
+        f"{' '.join(failure['failureText'].split())[:100]}"
+        for failure in summary.get("testFailures", [])
+    })
+    return Result(suite, simulator, passed, failed, skipped, restarts, problem, failures, log)
 
 
 def run_tests(config: dict[str, str], suite: str, target: str, simulator: Simulator) -> Result:
@@ -251,7 +259,7 @@ def run_tests(config: dict[str, str], suite: str, target: str, simulator: Simula
     print(f"Running {suite} on {simulator.label}…", flush=True)
     with log.open("w") as output:
         status = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT).returncode
-    return read_result(suite, simulator, status, log)
+    return read_result(suite, simulator, status, log, results)
 
 
 def report(results: list[Result]) -> bool:

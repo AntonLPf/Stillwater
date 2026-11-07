@@ -12,6 +12,8 @@ the API.
 - `ios-test` boots each simulator and puts its text size, appearance, and contrast back to the
   system's defaults before the tests, so a setting left behind cannot change the result.
 - `ios-test` gives each run its own result bundle in `test-logs/`.
+- `ios-test` counts tests and lists failures from the result bundle, so a parameterized test counts
+  once and a Swift Testing failure shows in its report.
 - `ios-test` runs unit tests without cloned simulators too.
 
 ## [0.1.1] - 2026-11-06

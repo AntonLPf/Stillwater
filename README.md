@@ -98,8 +98,9 @@ Then run it there:
 | `ios-test release` | The same, and every simulator in `RELEASE_SIMULATORS`. |
 
 It picks the simulators, runs at most two at a time, keeps the full logs and a result bundle for each
-run in `test-logs/`, and prints a table. It fails if the test runner restarted or no test ran, which `xcodebuild` reports as
-success. `ios-test --help` lists the rest.
+run in `test-logs/`, and prints a table of tests, counted from the bundle. It fails if the test
+runner restarted or no test ran, which `xcodebuild` reports as success. `ios-test --help` lists the
+rest.
 
 A simulator keeps its text size, appearance, and contrast after a person or another project changes
 them, so `ios-test` boots each one and puts them back to the system's defaults before the tests. It
