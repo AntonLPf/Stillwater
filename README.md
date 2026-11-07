@@ -97,9 +97,22 @@ Then run it there:
 | `ios-test close` | All tests on an iPhone and an iPad on the newest iOS that has both. |
 | `ios-test release` | The same, and every simulator in `RELEASE_SIMULATORS`. |
 
-It picks the simulators, runs at most two at a time, keeps the full logs in `test-logs/`, and prints
-a table. It fails if the test runner restarted or no test ran, which `xcodebuild` reports as
-success. `ios-test --help` lists the rest.
+Add `--only Target/Class/test` for one test, more than once for several. Add `--iterations 3` to run
+each test three times: one failure among them fails the test.
+
+It picks the simulators, runs them in pairs, keeps the full logs and a result bundle for each
+run in `test-logs/`, and prints a table of tests, counted from the bundle. It fails if the test
+runner restarted or no test ran, which `xcodebuild` reports as success. `ios-test --help` lists the
+rest.
+
+A simulator keeps its text size, appearance, and contrast after a person or another project changes
+them, so `ios-test` puts them back to the system's defaults before the tests, and prints any setting
+it changes.
+
+A simulator also goes on working for minutes after it says it has booted, so `ios-test` boots one at
+a time and waits for the Mac to settle after each, for up to 12 minutes, except on CI. A simulator
+that was already up starts at once. A pair that a run booted shuts down before the next pair starts,
+so a release does not leave every simulator up at the same time.
 
 ## Requirements
 

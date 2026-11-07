@@ -6,6 +6,7 @@
     ios-test release               the same, and every simulator in RELEASE_SIMULATORS
     ios-test quick --simulator ID  that simulator
     ios-test quick --only Target/Class/test
+    ios-test quick --only Target/Class/test --iterations 3
 
 Settings come from .ios-test in the current folder (or --config), as KEY=value lines:
 
@@ -18,8 +19,12 @@ Settings come from .ios-test in the current folder (or --config), as KEY=value l
     RELEASE_SIMULATORS=iPhone 16@18.5, iPad mini (A17 Pro)@26.2
 
 A run fails if xcodebuild fails, and also in two cases xcodebuild reports as success: the test
-runner restarted, or no test ran. UI tests fail a run if the log shows cloned simulators. Full
-logs stay in test-logs/. At most two simulators run at a time.
+runner restarted, or no test ran. A run also fails if the log shows cloned simulators. Full logs
+and result bundles stay in test-logs/. At most two simulators run at a time.
+
+Simulators run in pairs. Before a pair's tests, each simulator boots if it is down and settles, one
+at a time, and its text size, appearance, and contrast go back to the system's defaults. A pair this
+run booted shuts down before the next pair starts.
 """
 
 from __future__ import annotations
@@ -27,15 +32,28 @@ from __future__ import annotations
 import argparse
 import concurrent.futures
 import json
+import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
 LOGS = Path("test-logs")
 MAX_SIMULATORS = 2
+
+# A simulator keeps these after a person or another project changes them, and they move the layout:
+# at a larger text size, a list row that fits at the default can end up below the fold, and a row
+# off screen is not in the accessibility tree.
+DISPLAY_DEFAULTS = {"content_size": "large", "appearance": "light", "increase_contrast": "disabled"}
+
+# A simulator goes on working long after it says it has booted. An iOS 27 simulator held the load
+# average of a 16 GB Mac above 100 for four minutes and took ten to settle, and tests in that time
+# run slowly and can time out.
+SETTLE_MINUTES = 12
 
 
 @dataclass(frozen=True)
@@ -43,6 +61,7 @@ class Simulator:
     udid: str
     name: str
     version: tuple[int, int]
+    booted: bool = False
 
     @property
     def label(self) -> str:
@@ -96,7 +115,9 @@ def available_simulators() -> list[Simulator]:
         match = re.search(r"iOS-(\d+)-(\d+)", runtime)
         if match:
             version = (int(match[1]), int(match[2]))
-            simulators += [Simulator(d["udid"], d["name"], version) for d in devices]
+            simulators += [
+                Simulator(d["udid"], d["name"], version, d["state"] == "Booted") for d in devices
+            ]
     return simulators
 
 
@@ -185,47 +206,91 @@ def build(config: dict[str, str], simulator: Simulator) -> None:
         fail(f"the build failed; see {log}")
 
 
-def count(pattern: str, text: str) -> int:
-    return len(re.findall(pattern, text, re.MULTILINE))
+def wait_until_settled(simulator: Simulator) -> None:
+    """Waits until the Mac is no busier than it has cores, or for SETTLE_MINUTES."""
+    print(f"Letting {simulator.label} settle after booting…", flush=True)
+    time.sleep(60)  # The load average looks back a minute.
+    deadline = time.monotonic() + SETTLE_MINUTES * 60
+    while os.getloadavg()[0] > (os.cpu_count() or 1):
+        if time.monotonic() > deadline:
+            print(f"{simulator.label}: still busy after {SETTLE_MINUTES} minutes, going on", flush=True)
+            return
+        time.sleep(5)
 
 
-def read_result(suite: str, simulator: Simulator, status: int, log: Path, is_ui: bool) -> Result:
+def prepare(simulator: Simulator) -> None:
+    """Boots the simulator if it is down, lets it settle, and resets its display settings."""
+    booted = subprocess.run(
+        ["xcrun", "simctl", "bootstatus", simulator.udid, "-b"], capture_output=True, text=True,
+    )
+    if booted.returncode != 0:
+        fail(f"could not boot {simulator.label}: {booted.stderr.strip()}")
+    # A CI machine has nothing else to do, and a time limit.
+    if not simulator.booted and "CI" not in os.environ:
+        wait_until_settled(simulator)
+    for setting, default in DISPLAY_DEFAULTS.items():
+        command = ["xcrun", "simctl", "ui", simulator.udid, setting]
+        current = subprocess.run(command, capture_output=True, text=True).stdout.strip()
+        if current not in (default, "unsupported"):
+            print(f"{simulator.label}: {setting} was {current}, now {default}", flush=True)
+            subprocess.run(command + [default], check=True, capture_output=True)
+
+
+def read_summary(bundle: Path) -> dict:
+    """The counts and failures in a result bundle, or nothing if the run left none to read."""
+    output = subprocess.run(
+        ["xcrun", "xcresulttool", "get", "test-results", "summary", "--path", str(bundle)],
+        capture_output=True, text=True,
+    )
+    return json.loads(output.stdout) if output.returncode == 0 else {}
+
+
+def read_result(suite: str, simulator: Simulator, status: int, log: Path, bundle: Path) -> Result:
     text = log.read_text(errors="replace")
-    passed = count(r"^Test [Cc]ase .* passed", text)
-    failed = count(r"^Test [Cc]ase .* failed", text)
-    skipped = count(r"^Test [Cc]ase .* skipped", text)
+    # The log prints a parameterized test once per argument, and can leave a line out.
+    summary = read_summary(bundle)
+    passed = summary.get("passedTests", 0) + summary.get("expectedFailures", 0)
+    failed = summary.get("failedTests", 0)
+    skipped = summary.get("skippedTests", 0)
     restarts = text.count("Restarting after unexpected exit")
     problem = None
-    if status != 0:
+    if status != 0 and not failed:
         problem = "xcodebuild failed"
     elif restarts:
         problem = "the test runner restarted"
     elif passed + failed + skipped == 0:
         problem = "no test ran"
-    elif is_ui and re.search(r"Clone \d+ of ", text):
-        problem = "UI tests ran on cloned simulators"
-    failures = sorted(set(re.findall(r"error: -\[(\S+ \S+)\] : (.*)", text)))
-    return Result(
-        suite, simulator, passed, failed, skipped, restarts, problem,
-        [f"{name}: {message[:100]}" for name, message in failures], log,
-    )
+    elif re.search(r"Clone \d+ of ", text):
+        problem = "tests ran on cloned simulators"
+    failures = sorted({
+        f"{failure.get('testIdentifierString', failure['testName'])}: "
+        f"{' '.join(failure['failureText'].split())[:100]}"
+        for failure in summary.get("testFailures", [])
+    })
+    return Result(suite, simulator, passed, failed, skipped, restarts, problem, failures, log)
 
 
 def run_tests(
-    config: dict[str, str], suite: str, target: str, simulator: Simulator, is_ui: bool
+    config: dict[str, str], suite: str, targets: list[str], simulator: Simulator, iterations: int
 ) -> Result:
     name = re.sub(r"[^A-Za-z0-9.]+", "-", f"{suite}-{simulator.name}-{simulator.version[0]}.{simulator.version[1]}")
     log = LOGS / f"{name}.log"
+    # Without a path of its own, two runs that start in the same second share one result bundle.
+    results = LOGS / f"{name}.xcresult"
+    shutil.rmtree(results, ignore_errors=True)
+    # Parallel testing clones the simulator, and clones booting together stall a small Mac.
     command = base_command(config) + [
-        "test-without-building", "-destination", f"id={simulator.udid}", f"-only-testing:{target}",
+        "test-without-building", "-destination", f"id={simulator.udid}",
+        "-resultBundlePath", str(results), "-parallel-testing-enabled", "NO",
     ]
-    if is_ui:
-        command += ["-parallel-testing-enabled", "NO"]
+    command += [f"-only-testing:{target}" for target in targets]
+    if iterations > 1:
+        command += ["-test-iterations", str(iterations)]
     command += shlex.split(config.get("TEST_ARGS", ""))
     print(f"Running {suite} on {simulator.label}…", flush=True)
     with log.open("w") as output:
         status = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT).returncode
-    return read_result(suite, simulator, status, log, is_ui)
+    return read_result(suite, simulator, status, log, results)
 
 
 def report(results: list[Result]) -> bool:
@@ -255,7 +320,13 @@ def main() -> int:
     )
     parser.add_argument("stage", choices=["quick", "close", "release"])
     parser.add_argument("--simulator", help="a simulator's id, instead of choosing one")
-    parser.add_argument("--only", help="Target/Class/test, instead of the whole suite")
+    parser.add_argument(
+        "--only", action="append", help="Target/Class/test, instead of the whole suite; can repeat"
+    )
+    parser.add_argument(
+        "--iterations", type=int, default=1,
+        help="how many times to run each test; one failure among them fails the test",
+    )
     parser.add_argument("--config", default=".ios-test", type=Path)
     args = parser.parse_args()
     config = read_config(args.config)
@@ -266,18 +337,30 @@ def main() -> int:
     build(config, simulators[0])
 
     ui, unit = config.get("UI_TESTS"), config.get("UNIT_TESTS")
+    if args.only:
+        ui_tests = [test for test in args.only if ui is not None and test.startswith(ui)]
+        unit_tests = [test for test in args.only if test not in ui_tests]
+        suites = [("ui", ui_tests), ("unit", unit_tests)]
+    elif args.stage == "quick":
+        suites = [("ui", [ui])] if ui else [("unit", [unit])]
+    else:
+        suites = [("ui", [ui] if ui else []), ("unit", [unit] if unit else [])]
+
     results: list[Result] = []
-    with concurrent.futures.ThreadPoolExecutor(MAX_SIMULATORS) as pool:
-        if args.only:
-            is_ui = ui is not None and args.only.startswith(ui)
-            suites = [("ui" if is_ui else "unit", args.only, is_ui)]
-        elif args.stage == "quick":
-            suites = [("ui", ui, True)] if ui else [("unit", unit, False)]
-        else:
-            suites = [("ui", ui, True)] if ui else []
-            suites += [("unit", unit, False)] if unit else []
-        for suite, target, is_ui in suites:
-            results += pool.map(lambda s: run_tests(config, suite, target, s, is_ui), simulators)
+    pairs = [simulators[i:i + MAX_SIMULATORS] for i in range(0, len(simulators), MAX_SIMULATORS)]
+    for pair in pairs:
+        for simulator in pair:
+            prepare(simulator)
+        with concurrent.futures.ThreadPoolExecutor(MAX_SIMULATORS) as pool:
+            for suite, targets in suites:
+                if targets:
+                    results += pool.map(
+                        lambda s: run_tests(config, suite, targets, s, args.iterations), pair
+                    )
+        if pair is not pairs[-1]:
+            for simulator in pair:
+                if not simulator.booted:
+                    subprocess.run(["xcrun", "simctl", "shutdown", simulator.udid], capture_output=True)
 
     return 0 if report(results) else 1
 
