@@ -56,6 +56,7 @@ class Tools:
         self.runs = {}
         self.summaries = {}
         self.build_status = 0
+        self.build_log = ""
         self.unbootable = set()
         self.barrier = None
         self.up = {d["udid"] for ds in devices.values() for d in ds if d["state"] == "Booted"}
@@ -108,7 +109,9 @@ class Tools:
 
     def xcodebuild(self, command, output):
         if "build-for-testing" in command:
-            output.write("error: it did not build\n")
+            output.write(self.build_log)
+            if self.build_status:
+                output.write("error: it did not build\n")
             return self.done(command, self.build_status)
         udid = option(command, "-destination").removeprefix("id=")
         if udid not in self.up:
@@ -505,6 +508,91 @@ class Report(IosTestCase):
         self.assertEqual(code, 1)
         self.assertIn("FAILED", output)
         self.assertIn(" ok\n", output)
+
+
+class Warnings(IosTestCase):
+    def warning(self, path, message="'id' is main actor-isolated", place=":12:5"):
+        return f"{Path.cwd()}/{path}{place}: warning: {message}\n"
+
+    def build_with(self, *lines):
+        self.tools.build_log = "".join(lines)
+
+    @property
+    def builds(self):
+        return [c for c in self.tools.commands if "build-for-testing" in c]
+
+    def test_quick_builds_what_changed_and_close_builds_from_clean(self):
+        self.ios_test("quick")
+        self.ios_test("close")
+        self.ios_test("release")
+        self.assertEqual(["clean" in c for c in self.builds], [False, True, True])
+
+    def test_quick_lists_a_warning_and_passes(self):
+        self.build_with(self.warning("App/Work.swift"))
+        code, output = self.ios_test("quick")
+        self.assertEqual(code, 0)
+        self.assertIn("1 warning in the build:\n  App/Work.swift:12:5: 'id' is main actor-isolated\n", output)
+        self.assertNotIn("allows none", output)
+
+    def test_close_fails_on_a_warning_after_running_the_tests(self):
+        self.build_with(self.warning("App/Work.swift"))
+        code, output = self.ios_test("close")
+        self.assertEqual(code, 1)
+        self.assertEqual(len(self.test_runs), 4)
+        self.assertIn("The build has 1 warning, and close allows none.", output)
+
+    def test_release_fails_on_a_warning(self):
+        self.build_with(self.warning("App/Work.swift"))
+        code, output = self.ios_test("release")
+        self.assertEqual(code, 1)
+        self.assertIn("release allows none", output)
+
+    def test_close_passes_a_build_without_warnings(self):
+        self.build_with("Build settings from command line:\n", "** TEST BUILD SUCCEEDED **\n")
+        code, output = self.ios_test("close")
+        self.assertEqual(code, 0)
+        self.assertNotIn("warning", output)
+
+    def test_a_warning_printed_twice_counts_once(self):
+        self.build_with(self.warning("App/Work.swift"), "  12 | let id = work.id\n", self.warning("App/Work.swift"))
+        _, output = self.ios_test("close")
+        self.assertIn("The build has 1 warning,", output)
+
+    def test_two_warnings_on_one_line_count_twice(self):
+        self.build_with(self.warning("App/Sort.swift", place=":88:32"), self.warning("App/Sort.swift", place=":88:41"))
+        _, output = self.ios_test("close")
+        self.assertIn("The build has 2 warnings,", output)
+
+    def test_a_warning_inside_a_macro_names_the_line_it_came_from(self):
+        self.build_with(
+            "macro expansion #expect:1:63: warning: cannot form key path to 'id'\n",
+            f"`- {Path.cwd()}/AppTests/WorkTests.swift:213:85: note: expanded code originates here\n",
+            "213 |         #expect(works.map(\\.id) == [\"dune\"])\n",
+        )
+        _, output = self.ios_test("quick")
+        self.assertIn("  AppTests/WorkTests.swift:213:85: cannot form key path to 'id'\n", output)
+
+    def test_a_warning_about_a_whole_file_has_no_line(self):
+        self.build_with(self.warning("App/Assets.xcassets", "an unassigned child", place=""))
+        _, output = self.ios_test("quick")
+        self.assertIn("  App/Assets.xcassets: an unassigned child\n", output)
+
+    def test_a_package_built_outside_the_project_is_left_out(self):
+        self.build_with(
+            "/Users/me/Library/Developer/Xcode/DerivedData/App/SourcePackages/checkouts/Kit/Kit.swift:3:1: warning: old\n",
+            "2026-11-10 21:17:02.420 appintentsmetadataprocessor[1:2] warning: Metadata extraction skipped\n",
+        )
+        code, output = self.ios_test("close")
+        self.assertEqual(code, 0)
+        self.assertNotIn("warning", output)
+
+    def test_a_long_list_names_the_log_for_the_rest(self):
+        self.build_with(*(self.warning(f"App/File{n:02}.swift") for n in range(25)))
+        _, output = self.ios_test("quick")
+        self.assertIn("25 warnings in the build:", output)
+        self.assertIn("  App/File19.swift:12:5:", output)
+        self.assertNotIn("App/File20.swift", output)
+        self.assertIn("  and 5 more in test-logs/build-App.log", output)
 
 
 if __name__ == "__main__":
