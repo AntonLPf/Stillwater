@@ -105,6 +105,12 @@ run in `test-logs/`, and prints a table of tests, counted from the bundle. It fa
 runner restarted or no test ran, which `xcodebuild` reports as success. `ios-test --help` lists the
 rest.
 
+Tests can pass while the compiler warns, and the warnings then pile up unseen. Every run lists the
+warnings in the project's own files, those inside macros such as `#expect` included. `close` and
+`release` build from clean and fail on any. `quick` builds only what changed, so it lists the
+warnings of the files it compiled, and does not fail on them. A package built from outside the
+project is left out: its warnings are not the project's to fix.
+
 A simulator keeps its text size, appearance, and contrast after a person or another project changes
 them, so `ios-test` puts them back to the system's defaults before the tests, and prints any setting
 it changes.

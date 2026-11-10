@@ -22,6 +22,11 @@ A run fails if xcodebuild fails, and also in two cases xcodebuild reports as suc
 runner restarted, or no test ran. A run also fails if the log shows cloned simulators. Full logs
 and result bundles stay in test-logs/. At most two simulators run at a time.
 
+Every run lists the compiler's warnings in the project's own files, those inside macros such as
+#expect included; a package built from outside the project is left out. close and release build
+from clean and fail on any warning. quick does not fail on them, and builds only what changed, so
+it lists the warnings of the files it compiled.
+
 Simulators run in pairs. Before a pair's tests, each simulator boots if it is down and settles, one
 at a time, and its text size, appearance, and contrast go back to the system's defaults. A pair this
 run booted shuts down before the next pair starts.
@@ -54,6 +59,17 @@ DISPLAY_DEFAULTS = {"content_size": "large", "appearance": "light", "increase_co
 # average of a 16 GB Mac above 100 for four minutes and took ten to settle, and tests in that time
 # run slowly and can time out.
 SETTLE_MINUTES = 12
+
+# "/path/File.swift:12:98: warning: …", or, for a file the compiler reads as a whole,
+# "/path/Assets.xcassets: warning: …". xcodebuild prints each one more than once.
+WARNING = re.compile(r"^(/[^:\n]+?)(:\d+(?::\d+)?)?: warning: (.+)$", re.MULTILINE)
+
+# A warning inside a macro such as #expect names the macro, and its next line the file and line.
+MACRO_WARNING = re.compile(
+    r"^macro expansion [^:\n]+:\d+:\d+: warning: (.+)\n"
+    r"`- (/[^:\n]+?)(:\d+:\d+): note: expanded code originates here$",
+    re.MULTILINE,
+)
 
 
 @dataclass(frozen=True)
@@ -191,19 +207,47 @@ def base_command(config: dict[str, str]) -> list[str]:
     return command + ["-scheme", config["SCHEME"]]
 
 
-def build(config: dict[str, str], simulator: Simulator) -> None:
+def build(config: dict[str, str], simulator: Simulator, clean: bool) -> list[str]:
+    """Builds the tests, from clean if asked, and returns the warnings in the project's own files."""
     log = LOGS / f"build-{config['SCHEME']}.log"
-    print("Building for testing…", flush=True)
+    print("Building for testing from clean…" if clean else "Building for testing…", flush=True)
+    # An incremental build compiles only what changed, and so prints only the warnings of those files.
+    actions = ["clean", "build-for-testing"] if clean else ["build-for-testing"]
     with log.open("w") as output:
         status = subprocess.run(
-            base_command(config) + ["build-for-testing", "-destination", f"id={simulator.udid}"],
+            base_command(config) + actions + ["-destination", f"id={simulator.udid}"],
             stdout=output, stderr=subprocess.STDOUT,
         ).returncode
+    text = log.read_text(errors="replace")
     if status != 0:
-        for line in log.read_text(errors="replace").splitlines():
+        for line in text.splitlines():
             if "error:" in line:
                 print(line[:200], file=sys.stderr)
         fail(f"the build failed; see {log}")
+    warnings = read_warnings(text, Path.cwd())
+    if warnings:
+        print(f"{plural(len(warnings), 'warning')} in the build:")
+        for warning in warnings[:20]:
+            print(f"  {warning[:200]}")
+        if len(warnings) > 20:
+            print(f"  and {len(warnings) - 20} more in {log}")
+    return warnings
+
+
+def read_warnings(log: str, root: Path) -> list[str]:
+    """The warnings in files under root, each once, as 'path:line:column: message'."""
+    found = [(m[1], m[2] or "", m[3]) for m in WARNING.finditer(log)]
+    found += [(m[2], m[3], m[1]) for m in MACRO_WARNING.finditer(log)]
+    prefix = f"{root}/"
+    # A package the project depends on builds from a checkout outside it, and is not the project's to fix.
+    return sorted({
+        f"{path.removeprefix(prefix)}{place}: {message}"
+        for path, place, message in found if path.startswith(prefix)
+    })
+
+
+def plural(count: int, noun: str) -> str:
+    return f"{count} {noun}" if count == 1 else f"{count} {noun}s"
 
 
 def wait_until_settled(simulator: Simulator) -> None:
@@ -334,7 +378,8 @@ def main() -> int:
     (LOGS / ".gitignore").write_text("*\n")
 
     simulators = choose_simulators(args.stage, args.simulator, config)
-    build(config, simulators[0])
+    strict = args.stage != "quick"
+    warnings = build(config, simulators[0], clean=strict)
 
     ui, unit = config.get("UI_TESTS"), config.get("UNIT_TESTS")
     if args.only:
@@ -362,7 +407,11 @@ def main() -> int:
                 if not simulator.booted:
                     subprocess.run(["xcrun", "simctl", "shutdown", simulator.udid], capture_output=True)
 
-    return 0 if report(results) else 1
+    good = report(results)
+    if strict and warnings:
+        print(f"\nThe build has {plural(len(warnings), 'warning')}, and {args.stage} allows none.")
+        good = False
+    return 0 if good else 1
 
 
 if __name__ == "__main__":

@@ -20,6 +20,8 @@ the API.
 - `ios-test` runs unit tests without cloned simulators too.
 - Tests for `scripts/ios-test` in `scripts/tests/`. They need no simulator, and `scripts/test.sh` runs
   them first.
+- `ios-test` lists the compiler's warnings in the project's own files, those inside macros such as
+  `#expect` included. `close` and `release` build from clean and fail on any.
 
 ## [0.1.1] - 2026-11-06
 
