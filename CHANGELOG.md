@@ -6,9 +6,13 @@ the API.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-19
+
 ### Added
 
 - `scripts/ios-test`, a command that runs any iOS project's tests and checks the result.
+- `DEVICES=iphone` in `.ios-test` keeps `ios-test close` and `release` off the iPad for an
+  iPhone-only app.
 - `ios-test` boots each simulator and puts its text size, appearance, and contrast back to the
   system's defaults before the tests, so a setting left behind cannot change the result.
 - `ios-test` boots a simulator that is down, one at a time, and waits for the Mac to settle before
@@ -43,6 +47,7 @@ the API.
 - `auditAccessibility(for:ignoring:)`.
 - `matching(identifier:label:)` on queries, and `NSPredicate.identifier(_:label:)`.
 
-[Unreleased]: https://github.com/AntonLPf/Stillwater/compare/0.1.1...HEAD
+[Unreleased]: https://github.com/AntonLPf/Stillwater/compare/0.2.0...HEAD
+[0.2.0]: https://github.com/AntonLPf/Stillwater/compare/0.1.1...0.2.0
 [0.1.1]: https://github.com/AntonLPf/Stillwater/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/AntonLPf/Stillwater/releases/tag/0.1.0
